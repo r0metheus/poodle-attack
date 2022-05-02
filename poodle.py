@@ -81,11 +81,20 @@ def byte_xor(ba1, ba2):
     return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
 
 
-def server(path: str):
+def server_request(path: str):
+    random_cipher()
+
     request = "GET /{} HTTP/1.1\r\nCookie={}\r\n\r\n"
     secret = "s3cret-auth-c00kie"
 
     return encrypt(request.format(path, secret).encode())
+
+
+def server_response(ciphertext: bytes):
+    padding_correctness = oracle(ciphertext)
+    integrity = valid_frame(ciphertext)
+
+    return padding_correctness, integrity
 
 
 def attack():
@@ -94,11 +103,11 @@ def attack():
 
     # all the requests are meant to be issued by the client through an evil js (xss for instance)
 
-    original_encryption_len = len(server(''))
+    original_encryption_len = len(server_request(''))
     blocks_num = original_encryption_len//AES.block_size
 
     for i in range(AES.block_size*2):
-        forged_length = len(server('a'*i))
+        forged_length = len(server_request('a'*i))
 
         if (forged_length > original_encryption_len):
             break
@@ -114,9 +123,8 @@ def attack():
 
             # on average, block_size * num_blocks * 256 attempt are needed for POODLE attack to retrieve all the needed bytes
             for i in range(256*AES.block_size):
-                random_cipher()
 
-                forged_request = server('a'*(at_least+char))
+                forged_request = server_request('a'*(at_least+char))
 
                 forged_blocks = [forged_request[i:i+AES.block_size]
                                  for i in range(0, len(forged_request), AES.block_size)]
@@ -124,7 +132,7 @@ def attack():
                 # encrypted_blocks[chosen] is the chosen block to decrypt
                 forged_blocks[-1] = forged_blocks[chosen]
 
-                if oracle(b''.join(forged_blocks)):
+                if server_response(b''.join(forged_blocks))[0]:
 
                     c_prev = forged_blocks[chosen-1][-1:]
                     c_minus_one = forged_blocks[-2][-1:]
