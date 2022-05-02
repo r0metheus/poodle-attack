@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
- 
+
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import HMAC, SHA1
@@ -7,7 +7,7 @@ from Crypto.Util.Padding import pad, unpad
 
 master_key = get_random_bytes(32)
 IV = get_random_bytes(16)
-hmac_len = 64
+hmac_len = SHA1.digest_size*2
 
 
 def print_blocks(array: bytes):
